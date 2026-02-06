@@ -1,5 +1,7 @@
+/* Import Google font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
+/* Reset + global styles */
 * {
     margin: 0%;
     padding: 0%;
@@ -7,6 +9,7 @@
     font-family: "Inter", sans-serif;
 }
 
+/* Theme color variables */
 :root {
     --color-primary: #5C56E1;
     --color-primary-dark: #5b21b6;
@@ -19,6 +22,7 @@
     --color-gradient: linear-gradient(135deg, #5c56e1, #8b5cf6)
 }
 
+/* Dark theme overrides */
 body.dark-theme { 
     --color-card: #1e293b;
     --color-input: #141b2d;
@@ -32,6 +36,7 @@ body.dark-theme {
     radial-gradient(circle at 50% 80%, rgba(99, 102, 241, 0.1)0%, transparent 40%);
 }
 
+/* Page layout */
 body {
     display: flex;
     align-items: center;
@@ -42,6 +47,7 @@ body {
     background: linear-gradient(#E9E9FF, #C8C7FF);
 }
 
+/* Main card container */
 .container {
     width: 900px;
     padding: 32px;
@@ -52,10 +58,12 @@ body {
     box-shadow: 0 10px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
+/* Border for dark theme */
 body.dark-theme .container {
     border: 1px solid var(--color-border);
 }
 
+/* Top gradient line */
 .container::before {
     content: "";
     position: absolute;
@@ -65,19 +73,22 @@ body.dark-theme .container {
     height: 5px;
     background: var(--color-gradient);
 }
- 
+
+/* Header layout */
 .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
+/* Logo + title */
 .header .logo-wrapper {
     display: flex;
     gap: 18px;
     align-items: center;
 }
 
+/* Logo icon box */
 .header .logo-wrapper .logo {
     height: 55px;
     width: 56px;
@@ -91,11 +102,13 @@ body.dark-theme .container {
     background: var(--color-gradient);
 }
 
+/* Title text */
 .header .logo-wrapper h1 {
     font-size: 1.9rem;
     font-weight: 700;
 }
 
+/* Theme toggle button */
 .header .theme-toggle {
     height: 43px;
     width: 43px;
@@ -111,22 +124,26 @@ body.dark-theme .container {
     transition: all 0.3s ease;
 }
 
+/* Toggle hover */
 .header .theme-toggle:hover {
     color: var(--color-primary);
     transform: translateY(-2px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* Main section spacing */
 .main-content {
     margin: 35px  5px;
 }
 
+/* Prompt input container */
 .main-content .prompt-container {
     width: 100%;
     position: relative;
     margin-bottom: 20px;
 }
 
+/* Textarea input */
 .prompt-container .prompt-input {
     width: 100%;
     resize: vertical;
@@ -141,16 +158,19 @@ body.dark-theme .container {
     transition: all 0.3s ease;
 }
 
+/* Placeholder color */
 .prompt-container .prompt-input::placeholder {
     color: var(--color-placeholder);
 }
 
+/* Input focus style */
 .prompt-container .prompt-input:focus {
     outline: none;
     border-color: var(--color-accent);
     box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
 }
 
+/* Random prompt button */
 .prompt-container .prompt-btn {
     position: absolute;
     right: 15px;
@@ -167,22 +187,26 @@ body.dark-theme .container {
     transition: all 0.3s ease;
 }
 
+/* Random button hover */
 .prompt-container .prompt-btn:hover {
     opacity: 1;
     transform: translateY(-2px);
     box-shadow: 0 4px  6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* Controls grid */
 .main-content .prompt-actions {
     display: grid;
     grid-template-columns: 1.2fr 1fr 1.1fr 1fr;
     gap: 14px;
 }
 
+/* Select wrapper */
 .prompt-actions .select-wrapper {
     position: relative;
 }
 
+/* Custom dropdown arrow */
 .prompt-actions .select-wrapper::after {
     content: "\f078";
     font-family: "font awesome 6 free";
@@ -198,6 +222,7 @@ body.dark-theme .container {
     transform: translateY(-50%);
 }
 
+/* Select + button shared styles */
 .prompt-actions :where(.custom-select, .generate-btn) {
     cursor: pointer;
     padding: 12px 20px;
@@ -206,9 +231,9 @@ body.dark-theme .container {
     background: var(--color-input);
     border: 1px solid var(--color-border);
     transition: all 0.3s ease;;
-
 }
 
+/* Select element */
 .prompt-actions .custom-select {
     width: 100%;
     outline: none;
@@ -217,11 +242,13 @@ body.dark-theme .container {
     color: var(--color-text);
 }
 
+/* Select hover/focus */
 .prompt-actions .custom-select:is(:focus, :hover) {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
+/* Generate button */
 .prompt-actions .generate-btn {
     display: flex;
     gap: 12px;
@@ -235,21 +262,20 @@ body.dark-theme .container {
     background: var(--color-gradient);
 }
 
+/* Generate hover */
 .prompt-actions .generate-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(109, 40, 217, 0.3);
 }
 
-.main-content .gallery-grid:has(.img-card) {
-    margin-top: 30px;
-}
-
+/* Gallery grid */
 .main-content .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 15px;
 }
 
+/* Image card */
 .gallery-grid .img-card {
     display: flex;
     flex-direction: column;
@@ -264,89 +290,20 @@ body.dark-theme .container {
     transition: all 0.5s ease;
 }
 
+/* Card hover animation */
 .gallery-grid .img-card:not(.loading, .error):hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-.gallery-grid .mg-card .result-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+/* Spinner animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
-.gallery-grid .img-card:is(.loading, .error) :is(.result-img, .img-overlay) {
-    display: none;
-}
-
-.gallery-grid .img-card .img-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 20px;
-    display: flex;
-    justify-content: flex-end;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8))
-}
-
-.gallery-grid .img-card .img-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 20px;
-    display: flex;
-    opacity: 0;
-    justify-content: flex-end;
-    pointer-events: none;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-    transition: all 0.3s ease;
-}
-
-.gallery-grid .img-card:hover .img-overlay {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.gallery-grid .img-card .img-download-btn {
-    height: 45px;
-    width: 45px;
-    color: #fff;
-    backdrop-filter: blur(5px);
-    border-radius: 50%;
-    border: none;
-    cursor: pointer; 
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.gallery-grid .img-card .img-download-btn:hover {
-    transform: scale(1.05);
-    background: rgba(255, 255, 255, 0.4);
-}
-
-.gallery-grid .img-card .status-container {
-    padding: 15px;
-    display: none;
-    gap: 13px;
-    flex-direction: column;
-    align-items: center;
-}
-
-.gallery-grid .img-card:where(.loading, .error) .status-container {
-    display: flex;
-}
-
-.gallery-grid .img-card.loading .status-containe, 
-.gallery-grid .img-card.error .spinner {
-    display: none;
-}
-
-.gallery-grid .img-card.error .status-container i {
-    font-size: 1.7rem;
-    color: #ef4444;
-}
-
+/* Loading spinner */
 .gallery-grid .img-card.loading .spinner {
     width: 35px;
     height: 35px;
@@ -356,12 +313,7 @@ body.dark-theme .container {
     animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
+/* Status text */
 .gallery-grid .img-card .status-text {
     font-size: 0.85rem;
     text-align: center;

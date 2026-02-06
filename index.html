@@ -1,14 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Character encoding -->
     <meta charset="UTF-8">
+
+    <!-- Responsive layout -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Page title -->
     <title>AI Image Generator</title>
+
+    <!-- Main stylesheet -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- Font Awesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
+
+    <!-- App container -->
     <div class="container">
+
+        <!-- Header -->
         <header class="header">
             <div class="logo-wrapper">
                 <div class="logo">
@@ -17,78 +30,86 @@
                 <h1>AI Image Generator</h1>
             </div>
 
+            <!-- Theme toggle -->
             <button class="theme-toggle">
                 <i class="fa-solid fa-moon"></i>
             </button>
         </header>
 
+        <!-- Main content -->
         <div class="main-content">
+
+            <!-- Prompt form -->
             <form action="#" class="prompt-form">
+
+                <!-- Prompt input -->
                 <div class="prompt-container">
-                    <textarea class="prompt-input" placeholder="Describe your imagination in detail...." required autofocus></textarea>
-                <button type="button" class="prompt-btn">
-                    <i class="fa-solid fa-dice"></i>
-                </button>
+                    <textarea 
+                        class="prompt-input"
+                        placeholder="Describe your imagination in detail...."
+                        required
+                        autofocus>
+                    </textarea>
+
+                    <!-- Random prompt button -->
+                    <button type="button" class="prompt-btn">
+                        <i class="fa-solid fa-dice"></i>
+                    </button>
                 </div>
 
-            <div class="prompt-actions">
-                <div class="select-wrapper">
-                    <select class="custom-select" id="model-select" required>
-                    <option value="" selected disabled>Select Model</option>
-                    <option value="black-forest-labs/FLUX.1-dev">FLUX.1-dev</option>
-                    <option value="black-forest-labs/FLUX.1-schnell">FLUX.1-schnell</option>
-                    <option value="stabilityai/stable-diffusion-xl-base-1.
-                    0">Stable Diffusion XL</option>
-                    <option value="runwayml/stable-diffusion-v1-5">Stable
-                    Diffusion v1.5</option>
-                    <option value="prompthero/openjourney">Openjourney</option>
-                   </select>
-                </div>
+                <!-- Controls -->
+                <div class="prompt-actions">
 
-                <div class="select-wrapper">
-                   <select class="custom-select" id="count-select" required>
-                   <option value="" selected disabled>Image Count</option>
-                   <option value="1">1 Image</option>
-                   <option value="2">2 Images</option>
-                   <option value="3">3 Images</option>
-                   <option value="4">4 Images</option>
-                   </select>
-                </div>
+                    <!-- Model select -->
+                    <div class="select-wrapper">
+                        <select class="custom-select" id="model-select" required>
+                            <option value="" selected disabled>Select Model</option>
+                            <option value="black-forest-labs/FLUX.1-dev">FLUX.1-dev</option>
+                            <option value="black-forest-labs/FLUX.1-schnell">FLUX.1-schnell</option>
+                            <option value="stabilityai/stable-diffusion-xl-base-1.0">Stable Diffusion XL</option>
+                            <option value="runwayml/stable-diffusion-v1-5">Stable Diffusion v1.5</option>
+                            <option value="prompthero/openjourney">Openjourney</option>
+                        </select>
+                    </div>
 
-                <div class="select-wrapper">
-                   <select class="custom-select" id="ratio-select" required>
-                   <option value="" selected disabled>Aspect Ratio</option>>>
-                   <option value="1/1">Square (1:1)</option>
-                   <option value="16/9">Landscape (16:9)</option>
-                   <option value="9/16">Portrait (9:16)</option>
-                    </select>
-                </div>
+                    <!-- Image count select -->
+                    <div class="select-wrapper">
+                        <select class="custom-select" id="count-select" required>
+                            <option value="" selected disabled>Image Count</option>
+                            <option value="1">1 Image</option>
+                            <option value="2">2 Images</option>
+                            <option value="3">3 Images</option>
+                            <option value="4">4 Images</option>
+                        </select>
+                    </div>
 
+                    <!-- Aspect ratio select -->
+                    <div class="select-wrapper">
+                        <select class="custom-select" id="ratio-select" required>
+                            <option value="" selected disabled>Aspect Ratio</option>
+                            <option value="1/1">Square (1:1)</option>
+                            <option value="16/9">Landscape (16:9)</option>
+                            <option value="9/16">Portrait (9:16)</option>
+                        </select>
+                    </div>
+
+                    <!-- Generate button -->
                     <button type="submit" class="generate-btn">
                         <i class="fa-solid fa-wand-sparkles"></i>
                         Generate Images
                     </button>
-                </div> 
 
-                <div class="gallery-grid" id="grid-gallery">
-                    <!--<div class="img-card loading">
-                        <div class="status-container">
-                            <div class="spinner"></div>
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            <p class="status-text">Generating...</p>
-                        </div>
-                        <img src="test.jpg" class="result-img" />
-                        <div class="img-overlay">
-                            <button class="img-download-btn">
-                                <i class="fa-solid fa-download"></i>
-                            </button>
-                        </div>
-                    </div> -->
                 </div>
+
+                <!-- Gallery -->
+                <div class="gallery-grid" id="grid-gallery"></div>
+
             </form>
         </div>
     </div>
 
+    <!-- Main script -->
     <script src="script.js"></script>
+
 </body>
-</html> 
+</html>
