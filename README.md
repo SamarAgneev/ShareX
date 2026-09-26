@@ -1,39 +1,31 @@
 # AI Image Generator
 
-An AI Image Generator web app that creates images from text prompts using an image generation API.  
-This project is built with vanilla JavaScript and demonstrates how to connect a frontend UI with an AI image API.
-
----
+A vanilla HTML, CSS, and JavaScript web app that connects a prompt-based interface to an image-generation API.
 
 ## Live Demo
 
-https://deepaktecz.github.io/AI-Image-Generator/
-
----
+[Open the app](https://samaragneev.github.io/AI-Image-Generator/)
 
 ## Features
 
 - Generate images from text prompts
-- Multiple image generation option
-- Model selection
-- Aspect ratio selection
-- Responsive gallery layout
-- Light/Dark theme toggle
+- Choose a model and aspect ratio
+- Generate multiple images
+- Browse results in a responsive gallery
+- Toggle light and dark themes
 
----
-
-## Tech Stack
+## Built With
 
 - HTML
 - CSS
 - JavaScript
-- AI Image Generation API
+- An image-generation API
 
----
+## Run Locally
 
-## Installation
+```sh
+git clone https://github.com/SamarAgneev/AI-Image-Generator.git
+cd AI-Image-Generator
+```
 
-Clone the repository:
-
-```bash
-git clone https://github.com/deepaktecz/AI-Image-Generator.git
+Open `index.html` in a browser. The app requires access to the image-generation API for image creation.
