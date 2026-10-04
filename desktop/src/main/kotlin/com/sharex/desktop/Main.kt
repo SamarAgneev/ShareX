@@ -77,6 +77,7 @@ fun main(args: Array<String>) {
             icon = icon,
             state = windowState,
             undecorated = true,
+            onKeyEvent = { controller.onKey(it) },
         ) {
             LaunchedEffect(Unit) { window.minimumSize = Dimension(960, 640) }
 
@@ -110,14 +111,22 @@ fun main(args: Array<String>) {
                 }
             }
 
-            App(controller, windowState, onClose = {
-                if (settings.closeToTray) {
-                    windowVisible = false
-                } else {
+            App(
+                controller,
+                windowState,
+                onClose = {
+                    if (settings.closeToTray) {
+                        windowVisible = false
+                    } else {
+                        graph.engine.shutdown()
+                        exitApplication()
+                    }
+                },
+                onQuit = {
                     graph.engine.shutdown()
                     exitApplication()
-                }
-            })
+                },
+            )
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.sharex.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,16 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.TextFields
-import androidx.compose.material.icons.rounded.WifiTethering
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -42,48 +42,71 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.sharex.app.net.NetworkStatus
 import com.sharex.app.ui.components.DeviceAvatar
+import com.sharex.app.ui.components.DeviceListItem
+import com.sharex.app.ui.components.GradientButton
 import com.sharex.app.ui.components.IconBubble
-import com.sharex.app.ui.components.SectionLabel
+import com.sharex.app.ui.components.MenuAction
+import com.sharex.app.ui.components.QRButton
+import com.sharex.app.ui.components.SearchField
+import com.sharex.app.ui.components.SectionHeader
 import com.sharex.app.ui.components.ShareXCard
+import com.sharex.app.ui.components.SoftButton
+import com.sharex.app.ui.components.StatusDot
 import com.sharex.app.ui.components.Wordmark
 import com.sharex.app.ui.theme.ShareX
 import com.sharex.core.DeviceType
-import com.sharex.core.store.HistoryEntry
+import com.sharex.core.engine.DeviceDirectory
+import com.sharex.core.engine.DeviceEntry
+import com.sharex.core.engine.DeviceFilter
 import com.sharex.core.transfer.Direction
 import com.sharex.core.transfer.TransferInfo
 import com.sharex.core.transfer.TransferPhase
 import com.sharex.core.util.Format
-import com.sharex.app.ui.relativeTime
 
 data class HomeActions(
-    val onPickFiles: () -> Unit,
-    val onPickMedia: () -> Unit,
-    val onSendText: () -> Unit,
+    val onSend: () -> Unit,
+    val onReceive: () -> Unit,
     val onScanQr: () -> Unit,
     val onShowQr: () -> Unit,
     val onToggleVisible: (Boolean) -> Unit,
+    val onRefresh: () -> Unit,
     val onOpenHistory: () -> Unit,
-    val onOpenSettings: () -> Unit,
     val onOpenTransfer: (String) -> Unit,
     val onGrantNearby: () -> Unit,
+    val device: DeviceActions,
 )
+
+/** Everything a device row's menu can do; shared by Home and Devices so both behave identically. */
+data class DeviceActions(
+    val onOpenChat: (String) -> Unit,
+    val onOpenDetails: (String) -> Unit,
+    val onSendFiles: (String) -> Unit,
+    val onTrust: (String, Boolean) -> Unit,
+    val onRemove: (String) -> Unit,
+)
+
+fun DeviceActions.menuFor(entry: DeviceEntry): List<MenuAction> = buildList {
+    add(MenuAction("Open conversation", Icons.Rounded.History) { onOpenChat(entry.id) })
+    if (entry.online) add(MenuAction("Send files", Icons.Rounded.Upload) { onSendFiles(entry.id) })
+    add(MenuAction("Device details", Icons.Rounded.Search) { onOpenDetails(entry.id) })
+    if (entry.known) {
+        add(MenuAction(if (entry.trusted) "Untrust device" else "Trust device", Icons.Rounded.Lock) { onTrust(entry.id, !entry.trusted) })
+        add(MenuAction("Remove device", Icons.Rounded.Close, destructive = true) { onRemove(entry.id) })
+    }
+}
 
 @Composable
 fun HomeScreen(
@@ -91,227 +114,189 @@ fun HomeScreen(
     deviceType: DeviceType,
     visible: Boolean,
     network: NetworkStatus,
+    networkChecked: Boolean,
     nearbySupported: Boolean,
     nearbyAvailable: Boolean,
+    refreshing: Boolean,
+    devices: List<DeviceEntry>,
     activeTransfers: List<TransferInfo>,
-    recent: List<HistoryEntry>,
     actions: HomeActions,
 ) {
     val colors = ShareX.colors
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val recent = DeviceDirectory.apply(DeviceDirectory.recent(devices), DeviceFilter.ALL, query)
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item { Wordmark(Modifier.padding(top = 4.dp, bottom = 4.dp)) }
+
         item {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Wordmark(Modifier.weight(1f))
-                IconButton(onClick = actions.onOpenHistory) {
-                    Icon(Icons.Rounded.History, contentDescription = "History", tint = colors.text)
-                }
-                IconButton(onClick = actions.onOpenSettings) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = colors.text)
+            CurrentDeviceCard(
+                name = deviceName,
+                type = deviceType,
+                visible = visible,
+                network = network,
+                nearbyAvailable = nearbyAvailable,
+                onToggleVisible = actions.onToggleVisible,
+                onShowQr = actions.onShowQr,
+            )
+        }
+
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                GradientButton("Send", onClick = actions.onSend, icon = Icons.Rounded.Upload, modifier = Modifier.weight(1f))
+                SoftButton("Receive", onClick = actions.onReceive, icon = Icons.Rounded.Download, modifier = Modifier.weight(1f))
+            }
+        }
+
+        if (networkChecked && !network.connected && !nearbyAvailable) {
+            item {
+                ShareXCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBubble(Icons.Rounded.WifiOff, tint = colors.warning, background = colors.warning.copy(alpha = 0.14f), size = 40.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Not connected to a network", style = MaterialTheme.typography.titleSmall, color = colors.text)
+                            Text("Join the same Wi-Fi as the other device to find it.", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                        }
+                        androidx.compose.material3.TextButton(onClick = actions.onRefresh) { Text("Retry", color = colors.accent) }
+                    }
                 }
             }
         }
 
-        item {
-            VisibilityCard(deviceName, deviceType, visible, network, nearbyAvailable, actions)
-        }
-
-        item {
-            SendHero(actions)
-        }
-
         if (nearbySupported && !nearbyAvailable) {
             item {
-                ShareXCard(onClick = actions.onGrantNearby, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                ShareXCard(Modifier.fillMaxWidth(), onClick = actions.onGrantNearby, contentPadding = PaddingValues(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBubble(Icons.Rounded.WifiTethering, tint = colors.warning, background = colors.warning.copy(alpha = 0.14f))
-                        Spacer(Modifier.width(14.dp))
+                        IconBubble(Icons.Rounded.Lock, size = 40.dp)
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Share without Wi-Fi", style = MaterialTheme.typography.titleSmall, color = colors.text)
+                            Text("Permission required", style = MaterialTheme.typography.titleSmall, color = colors.text)
                             Text(
-                                "Allow nearby devices and precise location (Android requires it for Bluetooth discovery) so phones connect directly with no shared network.",
+                                "Allow nearby devices access to connect to phones without Wi-Fi.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colors.textMuted,
                             )
                         }
-                        Icon(Icons.Rounded.ChevronRight, null, tint = colors.textMuted)
+                        Text("Allow", style = MaterialTheme.typography.labelLarge, color = colors.accent)
                     }
                 }
             }
         }
 
         if (activeTransfers.isNotEmpty()) {
-            item { SectionLabel("In progress", Modifier.padding(top = 6.dp)) }
-            items(activeTransfers, key = { it.id }) { transfer ->
+            item { SectionHeader("Active transfers") }
+            items(activeTransfers, key = { "active-" + it.id }) { transfer ->
                 ActiveTransferRow(transfer, onClick = { actions.onOpenTransfer(transfer.id) })
             }
         }
 
         item {
-            SectionLabel("Recent", Modifier.padding(top = 6.dp)) {
-                if (recent.isNotEmpty()) {
-                    Text(
-                        "See all",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.accent,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClick = actions.onOpenHistory)
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
+            SectionHeader("Recent") {
+                IconButton(onClick = {
+                    searching = !searching
+                    if (!searching) query = ""
+                }) { Icon(Icons.Rounded.Search, contentDescription = if (searching) "Close search" else "Search devices", tint = colors.text) }
+                IconButton(onClick = actions.onOpenHistory) { Icon(Icons.Rounded.History, contentDescription = "Transfer history", tint = colors.text) }
+                QRButton("Scan QR", Icons.Rounded.QrCodeScanner, actions.onScanQr)
+                QRButton(if (refreshing) "Searching" else "Refresh", Icons.Rounded.Refresh, actions.onRefresh, enabled = !refreshing)
             }
         }
-        if (recent.isEmpty()) {
-            item {
-                Text(
-                    "Nothing shared yet. Files you send and receive will show up here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(horizontal = 4.dp),
+
+        if (searching) item { SearchField(query, { query = it }) }
+
+        when {
+            devices.isEmpty() && refreshing -> item { LoadingState("Looking for devices…", "Keep ShareX open on the other device.") }
+            devices.isEmpty() -> item {
+                EmptyState(
+                    "No devices found",
+                    "Devices you share with show up here. Open ShareX on another device or scan its QR code.",
+                    Icons.Rounded.Search,
+                    action = { GradientButton("Scan QR", onClick = actions.onScanQr, icon = Icons.Rounded.QrCodeScanner) },
                 )
             }
-        } else {
-            items(recent.take(5), key = { "h" + it.id }) { entry ->
-                HistoryRow(entry, onClick = actions.onOpenHistory)
+            recent.isEmpty() -> item {
+                EmptyState("No matching devices", "Nothing matches \"$query\".", Icons.Rounded.Search)
+            }
+            else -> items(recent, key = { "recent-" + it.id }) { entry ->
+                DeviceListItem(
+                    entry = entry,
+                    onClick = { actions.device.onOpenChat(entry.id) },
+                    menu = actions.device.menuFor(entry),
+                    modifier = Modifier.animateContentSize(),
+                )
             }
         }
-        item { Spacer(Modifier.navigationBarsPadding()) }
     }
 }
 
 @Composable
-private fun VisibilityCard(
-    deviceName: String,
-    deviceType: DeviceType,
+private fun CurrentDeviceCard(
+    name: String,
+    type: DeviceType,
     visible: Boolean,
     network: NetworkStatus,
     nearbyAvailable: Boolean,
-    actions: HomeActions,
+    onToggleVisible: (Boolean) -> Unit,
+    onShowQr: () -> Unit,
 ) {
     val colors = ShareX.colors
-    ShareXCard(Modifier.fillMaxWidth()) {
+    val status = when {
+        !visible -> "Hidden from nearby devices"
+        network.connected -> "Visible on ${network.kind ?: "your network"}"
+        nearbyAvailable -> "Visible via Nearby"
+        else -> "Visible, but no connection"
+    }
+    ShareXCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DeviceAvatar(deviceType, size = 52.dp, highlighted = visible)
+                DeviceAvatar(type, size = 56.dp, highlighted = true)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(deviceName, style = MaterialTheme.typography.titleMedium, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val status = when {
-                        !visible -> "Hidden · others can't find you"
-                        network.connected && nearbyAvailable -> "Visible on ${network.kind} + Nearby"
-                        network.connected -> "Visible on ${network.kind} · ${network.address}"
-                        nearbyAvailable -> "Visible via Nearby"
-                        else -> "Visible · no network yet"
-                    }
+                    Text(name, style = MaterialTheme.typography.titleLarge, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(if (visible) colors.success else colors.textMuted),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(status, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        StatusDot(visible && (network.connected || nearbyAvailable))
+                        Spacer(Modifier.width(7.dp))
+                        Text(status, style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 2)
                     }
                 }
-                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Switch(
-                        checked = visible,
-                        onCheckedChange = actions.onToggleVisible,
-                        colors = SwitchDefaults.colors(
-                            checkedTrackColor = colors.accent,
-                            checkedThumbColor = colors.onAccent,
-                            uncheckedTrackColor = colors.surfaceHigh,
-                            uncheckedBorderColor = colors.outline,
-                            uncheckedThumbColor = colors.textMuted,
-                        ),
-                    )
-                }
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = visible,
+                    onCheckedChange = onToggleVisible,
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = colors.accent,
+                        checkedThumbColor = colors.onAccent,
+                        uncheckedTrackColor = colors.surfaceHigh,
+                        uncheckedBorderColor = colors.outline,
+                        uncheckedThumbColor = colors.textMuted,
+                    ),
+                )
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Lock, null, tint = colors.success, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("End-to-end encrypted", style = MaterialTheme.typography.labelMedium, color = colors.textMuted, modifier = Modifier.weight(1f))
+                Icon(Icons.Rounded.Lock, contentDescription = null, tint = colors.success, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("End-to-end encrypted", style = MaterialTheme.typography.bodyMedium, color = colors.text, modifier = Modifier.weight(1f))
                 Row(
                     Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable(onClick = actions.onShowQr)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(role = Role.Button, onClick = onShowQr)
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Rounded.QrCode2, null, tint = colors.accent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("My QR code", style = MaterialTheme.typography.labelMedium, color = colors.accent)
+                    Icon(Icons.Rounded.QrCode2, contentDescription = null, tint = colors.accent, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("My QR code", style = MaterialTheme.typography.labelLarge, color = colors.accent)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SendHero(actions: HomeActions) {
-    val colors = ShareX.colors
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(colors.accent, Color(0xFF5B3FD9), colors.accentAlt.copy(alpha = 0.95f)),
-                ),
-            )
-            .padding(20.dp),
-    ) {
-        Column {
-            Text(
-                buildAnnotatedString {
-                    append("Share anything,\n")
-                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.72f))) { append("instantly.") }
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "To phones and PCs nearby — over Wi-Fi, hotspot or directly.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-            )
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HeroTile("Files", Icons.Rounded.Folder, actions.onPickFiles, Modifier.weight(1f))
-                HeroTile("Media", Icons.Rounded.PhotoLibrary, actions.onPickMedia, Modifier.weight(1f))
-                HeroTile("Text", Icons.Rounded.TextFields, actions.onSendText, Modifier.weight(1f))
-                HeroTile("Scan", Icons.Rounded.QrCodeScanner, actions.onScanQr, Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroTile(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.16f))
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(6.dp))
-        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -351,53 +336,4 @@ private fun ActiveTransferRow(transfer: TransferInfo, onClick: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = ShareX.colors
-    Row(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val tint = when {
-            entry.isSuccess -> colors.accent
-            entry.status == TransferPhase.CANCELLED.name -> colors.textMuted
-            else -> colors.danger
-        }
-        IconBubble(
-            if (entry.isSend) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
-            tint = tint,
-            background = tint.copy(alpha = 0.12f),
-            size = 42.dp,
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            val title = entry.items.singleOrNull()?.let { if (it.text != null) "Text" else it.name } ?: "${entry.items.size} items"
-            Text(title, style = MaterialTheme.typography.titleSmall, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val status = when (entry.status) {
-                TransferPhase.COMPLETED.name -> Format.bytes(entry.totalBytes)
-                TransferPhase.REJECTED.name -> "Declined"
-                TransferPhase.CANCELLED.name -> "Cancelled"
-                else -> "Failed"
-            }
-            Text(
-                "${if (entry.isSend) "To" else "From"} ${entry.peerName} · $status",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Text(relativeTime(entry.time), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-    }
-}
-
-@Composable
-fun FadeIn(visible: Boolean, content: @Composable () -> Unit) {
-    AnimatedVisibility(visible) { content() }
 }

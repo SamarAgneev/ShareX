@@ -30,6 +30,12 @@ data class ShareXColors(
     val success: Color,
     val danger: Color,
     val warning: Color,
+    /** Fill of the selected bottom-navigation pill, chips and other accent containers. */
+    val accentContainer: Color,
+    val online: Color,
+    val offline: Color,
+    val bubbleOut: Color,
+    val bubbleIn: Color,
     val isDark: Boolean,
 ) {
     val accentBrush: Brush get() = Brush.linearGradient(listOf(accent, accentAlt))
@@ -37,18 +43,23 @@ data class ShareXColors(
 }
 
 private val Dark = ShareXColors(
-    background = Color(0xFF0A0C10),
-    surface = Color(0xFF12151C),
-    surfaceHigh = Color(0xFF1A1F29),
-    outline = Color(0xFF262C38),
+    background = Color(0xFF080B10),
+    surface = Color(0xFF10151C),
+    surfaceHigh = Color(0xFF1A212B),
+    outline = Color(0xFF232C39),
     text = Color(0xFFF4F6FB),
-    textMuted = Color(0xFF9AA3B2),
-    accent = Color(0xFF19B7A5),
-    accentAlt = Color(0xFF56D5C8),
-    onAccent = Color(0xFF071815),
-    success = Color(0xFF2DD4A7),
+    textMuted = Color(0xFF9AA6B6),
+    accent = Color(0xFF19E3D0),
+    accentAlt = Color(0xFF5AF0E2),
+    onAccent = Color(0xFF04201D),
+    success = Color(0xFF22DD77),
     danger = Color(0xFFFF6B6B),
     warning = Color(0xFFFFB547),
+    accentContainer = Color(0xFF0D3F3B),
+    online = Color(0xFF22DD77),
+    offline = Color(0xFF7D8797),
+    bubbleOut = Color(0xFF0B5A52),
+    bubbleIn = Color(0xFF1A212B),
     isDark = true,
 )
 
@@ -65,6 +76,11 @@ private val Light = ShareXColors(
     success = Color(0xFF0FA77F),
     danger = Color(0xFFE5484D),
     warning = Color(0xFFD98A00),
+    accentContainer = Color(0xFFD2F1ED),
+    online = Color(0xFF0FA77F),
+    offline = Color(0xFF8A94A3),
+    bubbleOut = Color(0xFFCBEDE8),
+    bubbleIn = Color(0xFFFFFFFF),
     isDark = false,
 )
 

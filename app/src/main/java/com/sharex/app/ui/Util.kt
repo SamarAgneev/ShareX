@@ -107,3 +107,37 @@ fun qrBitmap(content: String, size: Int = 720, foreground: Int = 0xFF0E1116.toIn
     }
     return Bitmap.createBitmap(pixels, matrix.width, matrix.height, Bitmap.Config.ARGB_8888).asImageBitmap()
 }
+
+fun shareReceivedFile(context: Context, location: String, mimeType: String?, name: String) {
+    try {
+        val uri = AndroidReceiveStorage.uriFor(context, location)
+        val type = context.contentResolver.getType(uri) ?: AndroidReceiveStorage.mimeTypeFor(name, mimeType)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            this.type = type
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share $name").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Couldn't share this file", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** Free bytes on shared storage, or -1 when storage can't be queried (unmounted, permission lost). */
+fun freeStorageBytes(): Long = runCatching {
+    android.os.StatFs(android.os.Environment.getExternalStorageDirectory().path).availableBytes
+}.getOrDefault(-1L)
+
+fun dayLabel(time: Long): String {
+    val day = 24L * 3600 * 1000
+    return when {
+        DateUtils.isToday(time) -> "Today"
+        DateUtils.isToday(time + day) -> "Yesterday"
+        else -> DateUtils.formatDateTime(null, time, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR)
+    }
+}
+
+fun clockTime(time: Long): String = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(time))
+
+/** "Last seen" wording. Uses the real timestamp; returns "Not seen yet" when none was ever recorded. */
+fun lastSeenText(lastSeen: Long): String = if (lastSeen <= 0L) "Not seen yet" else "Last seen ${relativeTime(lastSeen)}"

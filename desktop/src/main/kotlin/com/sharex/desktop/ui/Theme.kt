@@ -34,6 +34,11 @@ data class Palette(
     val success: Color,
     val danger: Color,
     val warning: Color,
+    val accentContainer: Color,
+    val online: Color,
+    val offline: Color,
+    val bubbleOut: Color,
+    val bubbleIn: Color,
     val isDark: Boolean,
 ) {
     val accentBrush: Brush get() = Brush.linearGradient(listOf(accent, accentAlt))
@@ -41,19 +46,24 @@ data class Palette(
 }
 
 private val DarkPalette = Palette(
-    background = Color(0xFF0B0D12),
-    sidebar = Color(0xFF0F1218),
-    surface = Color(0xFF14171F),
-    surfaceHigh = Color(0xFF1C212C),
-    outline = Color(0xFF272D39),
+    background = Color(0xFF080B10),
+    sidebar = Color(0xFF0C1016),
+    surface = Color(0xFF10151C),
+    surfaceHigh = Color(0xFF1A212B),
+    outline = Color(0xFF232C39),
     text = Color(0xFFF4F6FB),
-    textMuted = Color(0xFF9AA3B2),
-    accent = Color(0xFF19B7A5),
-    accentAlt = Color(0xFF56D5C8),
-    onAccent = Color(0xFF071815),
-    success = Color(0xFF2DD4A7),
+    textMuted = Color(0xFF9AA6B6),
+    accent = Color(0xFF19E3D0),
+    accentAlt = Color(0xFF5AF0E2),
+    onAccent = Color(0xFF04201D),
+    success = Color(0xFF22DD77),
     danger = Color(0xFFFF6B6B),
     warning = Color(0xFFFFB547),
+    accentContainer = Color(0xFF0D3F3B),
+    online = Color(0xFF22DD77),
+    offline = Color(0xFF7D8797),
+    bubbleOut = Color(0xFF0B5A52),
+    bubbleIn = Color(0xFF1A212B),
     isDark = true,
 )
 
@@ -71,6 +81,11 @@ private val LightPalette = Palette(
     success = Color(0xFF0FA77F),
     danger = Color(0xFFE5484D),
     warning = Color(0xFFD98A00),
+    accentContainer = Color(0xFFD2F1ED),
+    online = Color(0xFF0FA77F),
+    offline = Color(0xFF8A94A3),
+    bubbleOut = Color(0xFFCBEDE8),
+    bubbleIn = Color(0xFFFFFFFF),
     isDark = false,
 )
 

@@ -5,6 +5,32 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.foundation.layout.Column
+import com.sharex.app.ui.components.ShareXBottomBar
+import com.sharex.app.ui.components.Tab
+import com.sharex.app.ui.screens.ChatActions
+import com.sharex.app.ui.screens.ChatScreen
+import com.sharex.app.ui.screens.DeviceActions
+import com.sharex.app.ui.screens.DeviceDetailActions
+import com.sharex.app.ui.screens.DeviceDetailsScreen
+import com.sharex.app.ui.screens.DevicesScreen
+import com.sharex.app.ui.screens.HistoryScreen
+import com.sharex.app.ui.screens.HomeActions
+import com.sharex.app.ui.screens.HomeScreen
+import com.sharex.app.ui.screens.IncomingRequestDialog
+import com.sharex.app.ui.screens.PickKind
+import com.sharex.app.ui.screens.ProfileActions
+import com.sharex.app.ui.screens.ProfileScreen
+import com.sharex.app.ui.screens.ProfileState
+import com.sharex.app.ui.screens.ReceiveActions
+import com.sharex.app.ui.screens.ReceiveQrScreen
+import com.sharex.app.ui.screens.ReceiveScreen
+import com.sharex.app.ui.screens.SendScreen
+import com.sharex.app.ui.screens.TextComposeDialog
+import com.sharex.app.ui.screens.TransferScreen
+import com.sharex.core.transfer.Direction
+import com.sharex.core.transfer.TransferPhase
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +39,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Snackbar
@@ -32,18 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import com.sharex.app.ui.screens.HistoryScreen
-import com.sharex.app.ui.screens.HomeActions
-import com.sharex.app.ui.screens.HomeScreen
-import com.sharex.app.ui.screens.IncomingRequestDialog
 import com.sharex.app.ui.screens.OnboardingScreen
-import com.sharex.app.ui.screens.ReceiveQrScreen
-import com.sharex.app.ui.screens.SendScreen
-import com.sharex.app.ui.screens.SettingsActions
-import com.sharex.app.ui.screens.SettingsScreen
-import com.sharex.app.ui.screens.SettingsState
-import com.sharex.app.ui.screens.TextComposeDialog
-import com.sharex.app.ui.screens.TransferScreen
 import com.sharex.app.ui.theme.ShareX
 import com.sharex.app.ui.theme.ShareXTheme
 
@@ -75,7 +91,10 @@ fun ShareXRoot(vm: AppViewModel, onRequestPermissions: () -> Unit) {
 private fun MainContent(vm: AppViewModel, onRequestPermissions: () -> Unit) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    // Null: composing for the Send screen's selection. Otherwise: send straight to that device.
+    var textTarget by remember { mutableStateOf<String?>(null) }
     var composingText by remember { mutableStateOf(false) }
+    var pickTarget by remember { mutableStateOf<String?>(null) }
 
     val screen by vm.screen.collectAsStateWithLifecycle()
     val deviceName by vm.settings.deviceName.collectAsStateWithLifecycle()
@@ -84,23 +103,45 @@ private fun MainContent(vm: AppViewModel, onRequestPermissions: () -> Unit) {
     val autoAccept by vm.settings.autoAcceptTrusted.collectAsStateWithLifecycle()
     val theme by vm.settings.theme.collectAsStateWithLifecycle()
     val network by vm.network.collectAsStateWithLifecycle()
+    val networkChecked by vm.networkChecked.collectAsStateWithLifecycle()
     val nearbyAvailable by vm.nearbyAvailable.collectAsStateWithLifecycle()
     val transfers by vm.transfers.collectAsStateWithLifecycle()
     val history by vm.history.collectAsStateWithLifecycle()
-    val peers by vm.peers.collectAsStateWithLifecycle()
     val selection by vm.selection.collectAsStateWithLifecycle()
     val resolving by vm.resolving.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
     val requests by vm.pendingRequests.collectAsStateWithLifecycle()
-    val devices by vm.knownDevices.collectAsStateWithLifecycle()
+    val devices by vm.devices.collectAsStateWithLifecycle()
     val addresses by vm.addresses.collectAsStateWithLifecycle()
     val lanPort by vm.lanPort.collectAsStateWithLifecycle()
     val selfType = vm.engine.self.type
 
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> vm.addUris(uris) }
-    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris -> vm.addUris(uris) }
+    val onPicked: (List<Uri>) -> Unit = { uris ->
+        val target = pickTarget
+        pickTarget = null
+        if (target != null) vm.sendUrisTo(target, uris) else vm.addUris(uris)
+    }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), onPicked)
+    val appPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), onPicked)
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(), onPicked)
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(), onPicked)
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(), onPicked)
 
-    val pickFiles = { filePicker.launch(arrayOf("*/*")) }
-    val pickMedia = { mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
+    fun pick(kind: PickKind, target: String? = null) {
+        pickTarget = target
+        when (kind) {
+            PickKind.FILES -> filePicker.launch(arrayOf("*/*"))
+            PickKind.APPS -> appPicker.launch(arrayOf("application/vnd.android.package-archive"))
+            PickKind.PHOTOS -> imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            PickKind.VIDEOS -> videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+        }
+    }
+    fun pickMedia(target: String?) {
+        pickTarget = target
+        mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+    }
+
+    // The Google code scanner brings its own camera UI and permission handling, so no CAMERA permission is needed.
     val scanQr: () -> Unit = {
         val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAutoZoom().build()
         val activity = context as? Activity
@@ -114,107 +155,199 @@ private fun MainContent(vm: AppViewModel, onRequestPermissions: () -> Unit) {
         vm.events.collect { event ->
             when (event) {
                 is UiEvent.Message -> snackbar.showSnackbar(event.text)
-                UiEvent.PickFiles -> pickFiles()
+                UiEvent.PickFiles -> pick(PickKind.FILES)
             }
         }
     }
 
     BackHandler(enabled = screen != Screen.Home) { vm.back() }
 
-    AnimatedContent(
-        targetState = screen,
-        transitionSpec = {
-            (fadeIn() + slideInHorizontally { it / 12 }) togetherWith fadeOut()
-        },
-        label = "screens",
-        modifier = Modifier.fillMaxSize(),
-    ) { current ->
-        when (current) {
-            Screen.Home -> HomeScreen(
-                deviceName = deviceName,
-                deviceType = selfType,
-                visible = visibleSetting,
-                network = network,
-                nearbySupported = vm.nearbySupported,
-                nearbyAvailable = nearbyAvailable,
-                activeTransfers = transfers.filter { it.isActive && it.phase != com.sharex.core.transfer.TransferPhase.AWAITING_DECISION },
-                recent = history,
-                actions = HomeActions(
-                    onPickFiles = pickFiles,
-                    onPickMedia = pickMedia,
-                    onSendText = { composingText = true },
-                    onScanQr = scanQr,
-                    onShowQr = { vm.navigate(Screen.ReceiveQr) },
-                    onToggleVisible = vm::setVisible,
-                    onOpenHistory = { vm.navigate(Screen.History) },
-                    onOpenSettings = { vm.navigate(Screen.Settings) },
-                    onOpenTransfer = { vm.navigate(Screen.Transfer(it)) },
-                    onGrantNearby = onRequestPermissions,
-                ),
-            )
-            Screen.Send -> SendScreen(
-                selfType = selfType,
-                selection = selection,
-                resolving = resolving,
-                peers = peers,
-                onBack = vm::back,
-                onAddMore = pickFiles,
-                onRemove = vm::removeItem,
-                onSend = vm::sendTo,
-                onScanQr = scanQr,
-                onSendToAddress = vm::sendToAddress,
-                onScanningChanged = vm::setScanning,
-            )
-            is Screen.Transfer -> {
-                val transfer = transfers.firstOrNull { it.id == current.id }
-                TransferScreen(
-                    transfer = transfer,
-                    selfType = selfType,
-                    canRetry = vm.canRetry(current.id),
-                    onClose = { vm.finishTransfer(transfer) },
-                    onCancel = { vm.cancel(current.id) },
-                    onRetry = { vm.retry(current.id) },
-                )
-            }
-            Screen.ReceiveQr -> ReceiveQrScreen(
-                link = if (lanPort != null && addresses.isNotEmpty()) vm.connectLink() else null,
-                visible = visibleSetting,
-                fingerprint = vm.identity.displayFingerprint,
-                onBack = vm::back,
-                onMakeVisible = { vm.setVisible(true) },
-            )
-            Screen.History -> HistoryScreen(
-                entries = history,
-                onBack = vm::back,
-                onClear = vm::clearHistory,
-                onRemove = vm::removeHistory,
-            )
-            Screen.Settings -> SettingsScreen(
-                state = SettingsState(
+    val deviceActions = DeviceActions(
+        onOpenChat = vm::openChat,
+        onOpenDetails = vm::openDevice,
+        onSendFiles = { id -> pick(PickKind.FILES, id) },
+        onTrust = vm::setTrusted,
+        onRemove = vm::forgetDevice,
+    )
+
+    val tab = when (screen) {
+        Screen.Home -> Tab.HOME
+        Screen.Devices -> Tab.DEVICES
+        Screen.Profile -> Tab.PROFILE
+        else -> null
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = screen,
+            transitionSpec = { (fadeIn() + slideInHorizontally { it / 12 }) togetherWith fadeOut() },
+            label = "screens",
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) { current ->
+            when (current) {
+                Screen.Home -> HomeScreen(
                     deviceName = deviceName,
                     deviceType = selfType,
-                    fingerprint = vm.identity.displayFingerprint,
                     visible = visibleSetting,
-                    backgroundVisible = backgroundVisible,
-                    autoAcceptTrusted = autoAccept,
-                    theme = theme,
+                    network = network,
+                    networkChecked = networkChecked,
                     nearbySupported = vm.nearbySupported,
                     nearbyAvailable = nearbyAvailable,
+                    refreshing = refreshing,
                     devices = devices,
-                ),
-                actions = SettingsActions(
+                    activeTransfers = transfers.filter { it.isActive && it.phase != TransferPhase.AWAITING_DECISION },
+                    actions = HomeActions(
+                        onSend = { vm.navigate(Screen.Send()) },
+                        onReceive = { vm.navigate(Screen.Receive) },
+                        onScanQr = scanQr,
+                        onShowQr = { vm.navigate(Screen.ReceiveQr) },
+                        onToggleVisible = vm::setVisible,
+                        onRefresh = vm::refreshDevices,
+                        onOpenHistory = { vm.navigate(Screen.History) },
+                        onOpenTransfer = { vm.navigate(Screen.Transfer(it)) },
+                        onGrantNearby = onRequestPermissions,
+                        device = deviceActions,
+                    ),
+                )
+                Screen.Devices -> DevicesScreen(
+                    devices = devices,
+                    refreshing = refreshing,
+                    network = network,
+                    networkChecked = networkChecked,
+                    nearbyAvailable = nearbyAvailable,
+                    onScanQr = scanQr,
+                    onRefresh = vm::refreshDevices,
+                    deviceActions = deviceActions,
+                )
+                Screen.Profile -> ProfileScreen(
+                    state = ProfileState(
+                        deviceName = deviceName,
+                        deviceType = selfType,
+                        fingerprint = vm.identity.displayFingerprint,
+                        visible = visibleSetting,
+                        backgroundVisible = backgroundVisible,
+                        autoAcceptTrusted = autoAccept,
+                        theme = theme,
+                        nearbySupported = vm.nearbySupported,
+                        nearbyAvailable = nearbyAvailable,
+                        freeStorageBytes = freeStorageBytes(),
+                    ),
+                    actions = ProfileActions(
+                        onRename = vm.settings::setDeviceName,
+                        onVisible = vm::setVisible,
+                        onBackgroundVisible = vm.settings::setBackgroundVisible,
+                        onAutoAccept = vm.settings::setAutoAcceptTrusted,
+                        onTheme = vm.settings::setTheme,
+                        onGrantNearby = onRequestPermissions,
+                        onCopyFingerprint = { copyToClipboard(context, vm.identity.displayFingerprint) },
+                        onOpenReceived = { openDownloads(context) },
+                    ),
+                )
+                is Screen.Device -> DeviceDetailsScreen(
+                    entry = devices.firstOrNull { it.id == current.id },
+                    refreshing = refreshing,
+                    actions = DeviceDetailActions(
+                        onBack = vm::back,
+                        onSendFiles = { pick(PickKind.FILES, current.id) },
+                        onSendMedia = { pickMedia(current.id) },
+                        onSendText = { textTarget = current.id; composingText = true },
+                        onHistory = { vm.openChat(current.id) },
+                        onTrust = { vm.setTrusted(current.id, it) },
+                        onReconnect = vm::refreshDevices,
+                        onRemove = {
+                            vm.forgetDevice(current.id)
+                            vm.back()
+                        },
+                    ),
+                )
+                is Screen.Chat -> {
+                    val messages by remember(current.id) { vm.chatFor(current.id) }.collectAsStateWithLifecycle()
+                    ChatScreen(
+                        entry = devices.firstOrNull { it.id == current.id },
+                        messages = messages,
+                        actions = ChatActions(
+                            onBack = vm::back,
+                            onOpenDetails = { vm.openDevice(current.id) },
+                            onAttach = { pick(PickKind.FILES, current.id) },
+                            onGallery = { pickMedia(current.id) },
+                            onSendText = { vm.sendTextTo(current.id, it) },
+                            onCancel = vm::cancel,
+                            onRetry = vm::retry,
+                            canRetry = vm::canRetry,
+                            onRefresh = vm::refreshDevices,
+                        ),
+                    )
+                }
+                is Screen.Send -> SendScreen(
+                    targetId = current.targetId,
+                    devices = devices.filter { it.online || it.id == current.targetId },
+                    selection = selection,
+                    resolving = resolving,
+                    refreshing = refreshing,
                     onBack = vm::back,
-                    onRename = vm.settings::setDeviceName,
-                    onVisible = vm::setVisible,
-                    onBackgroundVisible = vm.settings::setBackgroundVisible,
-                    onAutoAccept = vm.settings::setAutoAcceptTrusted,
-                    onTheme = vm.settings::setTheme,
-                    onGrantNearby = onRequestPermissions,
-                    onTrust = vm::setTrusted,
-                    onForget = vm::forgetDevice,
-                ),
-            )
+                    onPick = { kind -> pick(kind) },
+                    onCompose = { textTarget = null; composingText = true },
+                    onRemove = vm::removeItem,
+                    onSendToDevice = vm::sendSelectionTo,
+                    onScanQr = scanQr,
+                    onSendToAddress = vm::sendToAddress,
+                    onRefresh = vm::refreshDevices,
+                )
+                Screen.Receive -> ReceiveScreen(
+                    deviceName = deviceName,
+                    deviceType = selfType,
+                    visible = visibleSetting,
+                    network = network,
+                    networkChecked = networkChecked,
+                    nearbyAvailable = nearbyAvailable,
+                    transfers = transfers.filter { it.direction == Direction.RECEIVE && it.phase != TransferPhase.AWAITING_DECISION },
+                    actions = ReceiveActions(
+                        onBack = vm::back,
+                        onMakeVisible = { vm.setVisible(true) },
+                        onShowQr = { vm.navigate(Screen.ReceiveQr) },
+                        onOpenTransfer = { vm.navigate(Screen.Transfer(it)) },
+                        onCancel = vm::cancel,
+                        onDismiss = vm::dismissTransfer,
+                        onRefresh = vm::refreshDevices,
+                    ),
+                )
+                is Screen.Transfer -> {
+                    val transfer = transfers.firstOrNull { it.id == current.id }
+                    TransferScreen(
+                        transfer = transfer,
+                        selfType = selfType,
+                        canRetry = vm.canRetry(current.id),
+                        onClose = { vm.finishTransfer(transfer) },
+                        onCancel = { vm.cancel(current.id) },
+                        onRetry = { vm.retry(current.id) },
+                    )
+                }
+                Screen.ReceiveQr -> ReceiveQrScreen(
+                    link = if (lanPort != null && addresses.isNotEmpty()) vm.connectLink() else null,
+                    visible = visibleSetting,
+                    fingerprint = vm.identity.displayFingerprint,
+                    onBack = vm::back,
+                    onMakeVisible = { vm.setVisible(true) },
+                )
+                Screen.History -> HistoryScreen(
+                    entries = history,
+                    knownDeviceIds = devices.mapTo(HashSet()) { it.id },
+                    onBack = vm::back,
+                    onClear = vm::clearHistory,
+                    onRemove = vm::removeHistory,
+                    onOpenConversation = vm::openChat,
+                )
+            }
         }
+        if (tab != null) ShareXBottomBar(tab, onSelect = { selected ->
+            vm.selectTab(
+                when (selected) {
+                    Tab.HOME -> Screen.Home
+                    Tab.DEVICES -> Screen.Devices
+                    Tab.PROFILE -> Screen.Profile
+                },
+            )
+        })
     }
 
     requests.firstOrNull()?.let { request ->
@@ -224,11 +357,13 @@ private fun MainContent(vm: AppViewModel, onRequestPermissions: () -> Unit) {
     if (composingText) {
         TextComposeDialog(onDismiss = { composingText = false }, onSend = {
             composingText = false
-            vm.addText(it)
+            val target = textTarget
+            textTarget = null
+            if (target != null) vm.sendTextTo(target, it) else vm.addText(it)
         })
     }
 
-    Box(Modifier.fillMaxSize().navigationBarsPadding().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
+    Box(Modifier.fillMaxSize().navigationBarsPadding().padding(bottom = if (tab != null) 80.dp else 0.dp, start = 16.dp, end = 16.dp, top = 16.dp), contentAlignment = Alignment.BottomCenter) {
         SnackbarHost(snackbar) { data ->
             Snackbar(
                 data,

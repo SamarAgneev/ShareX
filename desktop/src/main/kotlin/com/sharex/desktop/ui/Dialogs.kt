@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -151,7 +152,7 @@ private fun DialogTitle(text: String) {
 }
 
 @Composable
-fun SendTextDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+fun SendTextDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit, confirmLabel: String = "Add") {
     var text by remember { mutableStateOf("") }
     DialogFrame(420.dp, onDismiss) {
         DialogTitle("Send text")
@@ -161,7 +162,7 @@ fun SendTextDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
         TextAction("Paste clipboard", { Platform.clipboardText()?.let { text = it } }, icon = Icons.Rounded.ContentPaste)
         Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
             SecondaryButton("Cancel", onClick = onDismiss)
-            PrimaryButton("Add", onClick = { onAdd(text) }, enabled = text.isNotBlank())
+            PrimaryButton(confirmLabel, onClick = { onAdd(text) }, enabled = text.isNotBlank())
         }
     }
 }
@@ -223,5 +224,55 @@ private fun FolderRow(icon: ImageVector, text: String, textColor: Color, iconCol
         Icon(icon, null, tint = iconColor, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * Windows has no camera scanner, so "Scan QR" decodes a screenshot/photo of the phone's QR code, the clipboard
+ * (image or `sharex://` text), or a pasted code. Everything ends in the same validated connect flow as the phone.
+ */
+@Composable
+fun ConnectByCodeDialog(window: java.awt.Window, onDismiss: () -> Unit, onDecodeFile: (java.io.File) -> String?, onDecodeImage: (java.awt.image.BufferedImage) -> String?, onCode: (String) -> Unit, onError: (String) -> Unit) {
+    val c = Theme.colors
+    var code by remember { mutableStateOf("") }
+    DialogFrame(460.dp, onDismiss) {
+        DialogTitle("Scan a ShareX QR code")
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Open My QR code on the other device, then pick a screenshot of it, paste it from the clipboard, or paste the code text.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = c.textMuted,
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SecondaryButton("Choose image…", onClick = {
+                chooseImage(window)?.let { file ->
+                    val decoded = onDecodeFile(file)
+                    if (decoded != null) onCode(decoded) else onError("No QR code found in that image")
+                }
+            }, icon = Icons.Rounded.QrCodeScanner)
+            SecondaryButton("Paste from clipboard", onClick = {
+                val image = runCatching {
+                    java.awt.Toolkit.getDefaultToolkit().systemClipboard.getData(java.awt.datatransfer.DataFlavor.imageFlavor) as? java.awt.Image
+                }.getOrNull()
+                val text = Platform.clipboardText()
+                when {
+                    image != null -> {
+                        val buffered = java.awt.image.BufferedImage(image.getWidth(null), image.getHeight(null), java.awt.image.BufferedImage.TYPE_INT_RGB)
+                        buffered.createGraphics().apply { drawImage(image, 0, 0, null); dispose() }
+                        val decoded = onDecodeImage(buffered)
+                        if (decoded != null) onCode(decoded) else onError("No QR code found on the clipboard")
+                    }
+                    !text.isNullOrBlank() -> onCode(text)
+                    else -> onError("Clipboard is empty")
+                }
+            }, icon = Icons.Rounded.ContentPaste)
+        }
+        Spacer(Modifier.height(14.dp))
+        ShareXInput(code, { code = it.trim() }, Modifier.fillMaxWidth(), placeholder = "sharex://…")
+        Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+            SecondaryButton("Cancel", onClick = onDismiss)
+            PrimaryButton("Connect", onClick = { onCode(code) }, enabled = code.isNotBlank())
+        }
     }
 }

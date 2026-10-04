@@ -131,6 +131,8 @@ data class HistoryEntry(
     val message: String? = null,
     val time: Long,
     val durationMs: Long = 0,
+    /** Id of the other device; null for entries written before this field existed or for address-only sends. */
+    val peerId: String? = null,
 ) {
     val isSend: Boolean get() = direction == Direction.SEND.name
     val isSuccess: Boolean get() = status == TransferPhase.COMPLETED.name
@@ -177,5 +179,6 @@ fun TransferInfo.toHistoryEntry(): HistoryEntry {
         message = message,
         time = startedAt,
         durationMs = (finishedAt ?: System.currentTimeMillis()) - startedAt,
+        peerId = peer?.id,
     )
 }
